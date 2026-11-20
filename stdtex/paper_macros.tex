@@ -32,6 +32,62 @@
 
 }
 
+%% Clause number: give the next heading its number in the working draft.
+%% Inside the wording environment a heading has no chapter, so it prints
+%% with a ? glyph for each number it cannot know. Write the number before
+%% the heading it belongs to:
+%%   \clausenumber{22.10.17.4}
+%%   \rSec3[func.wrap.move]{Move-only wrapper}
+%% A number of n parts belongs to a heading n-1 levels below \chapter
+%% (\rSec3 above, with SectionDepthBase 0). Every part but the last sets
+%% the counter of its level; the heading's own counter is set one below
+%% the last part, because the heading steps it. Headings that follow carry
+%% on from there, so a nested \rSec4 prints 22.10.17.4.1 and the next
+%% \rSec3 prints 22.10.17.5. Chapter numbers print again from here to the
+%% end of the enclosing group, normally the wording environment.
+%% A number is only meaningful against one revision of the draft, so the
+%% paper should name that revision.
+\ExplSyntaxOn
+\seq_new:N \l__wgltx_clause_parts_seq
+\tl_const:Nn \c__wgltx_clause_counters_tl
+  { {chapter} {section} {subsection} {subsubsection} {paragraph} {subparagraph} }
+\msg_new:nnn { wg21-latex } { clause-number-depth }
+  { \token_to_str:N \clausenumber \ has~#1~parts;~it~takes~1~to~6. }
+\cs_new_protected:Npn \__wgltx_clause_set:
+  {
+    \int_step_inline:nn { \seq_count:N \l__wgltx_clause_parts_seq }
+      {
+        \setcounter
+          { \tl_item:Nn \c__wgltx_clause_counters_tl {##1} }
+          {
+            \int_eval:n
+              {
+                \seq_item:Nn \l__wgltx_clause_parts_seq {##1}
+                \int_compare:nNnT {##1} = { \seq_count:N \l__wgltx_clause_parts_seq }
+                  { - 1 }
+              }
+          }
+      }
+    \renewcommand \thesection { \arabic{chapter} . \arabic{section} }
+    \renewcommand \thesubsection { \thesection . \arabic{subsection} }
+  }
+\NewDocumentCommand \clausenumber { m }
+  {
+    \seq_set_split:Nnn \l__wgltx_clause_parts_seq { . } {#1}
+    \seq_remove_all:Nn \l__wgltx_clause_parts_seq { }
+    \bool_if:nTF
+      {
+        \int_compare_p:nNn { \seq_count:N \l__wgltx_clause_parts_seq } < { 1 } ||
+        \int_compare_p:nNn { \seq_count:N \l__wgltx_clause_parts_seq } > { 6 }
+      }
+      {
+        \msg_error:nnx { wg21-latex } { clause-number-depth }
+          { \seq_count:N \l__wgltx_clause_parts_seq }
+      }
+      { \__wgltx_clause_set: }
+  }
+\ExplSyntaxOff
+
 \newenvironment{addedcode}
 {
 \color{addclr}
